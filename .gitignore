@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# User data
+vault/
+staging/
+quarantine/
+processed/
+logs/
+*.db
+*.db-journal
+
+# Qdrant
+rag/qdrant_data/
+holographic/qdrant_data/
+holographic/conversations/
+
+# Wiki user content
+wiki/raw/
+wiki/entities/
+wiki/concepts/
+wiki/comparisons/
+wiki/queries/
+wiki/_archive/
+
+# Build artifacts
+*.spec
+*.app
+.DS_Store

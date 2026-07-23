@@ -1,0 +1,62 @@
+# 知识库系统配置
+# 指定文件源目录 + 处理规则
+
+system:
+  root_path: "~/Documents/knowledge-system"
+
+# 文件源目录（pipeline --scan 会扫描这些目录）
+watch_dirs:
+  - ~/Documents
+  - ~/Downloads
+  - ~/Desktop
+
+# 排除规则
+exclude:
+  patterns:
+    - "*.DS_Store"
+    - "*.tmp"
+    - "*.swp"
+    - ".*/"
+  dirs:
+    - node_modules
+    - __pycache__
+    - .git
+    - .venv
+    - venv
+    - dist
+    - build
+
+# 支持的类型（这些后缀的文件才会被处理）
+include_types:
+  - docx, doc
+  - xlsx, xls
+  - pptx, ppt
+  - pdf
+  - jpg, jpeg, png, gif, webp, bmp, svg
+  - mp4, mov, avi, mkv
+  - mp3, wav, m4a, aac, flac
+  - xmind, mm, opml
+  - vsdx
+  - md, txt, csv, json, yaml
+  - py, js, ts, jsx, tsx, go, rs, java, c, cpp, h
+
+# 处理器配置
+processors:
+  video:
+    frame_interval_sec: 10
+    max_duration_min: 30
+  image:
+    max_dimension_px: 4096
+
+# RAG 配置
+rag:
+  qdrant_path: "~/Documents/knowledge-system/rag/qdrant_data"
+  collection: "rag_knowledge"
+  chunk_size: 500
+  chunk_overlap: 80
+  embedding_model: "text-embedding-v3"
+  embedding_batch_size: 10
+
+# Wiki 配置
+wiki:
+  wiki_path: "~/Documents/knowledge-system/wiki"
