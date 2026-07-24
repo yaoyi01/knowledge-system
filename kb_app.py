@@ -389,12 +389,20 @@ class App(ctk.CTk):
 
     def _auto_resume(self, count):
         """启动时自动续扫中断的文件"""
+        self.after(0, lambda: self.show_import())
+        self.after(100, lambda: self.imp_log.insert("end", f"🔍 检测到 {count} 个中断文件，自动续扫...\n\n"))
+        self.after(200, lambda: self._do_resume_thread(count))
+
+    def _do_resume_thread(self, count):
         import subprocess, threading
         v = str(Path.home()/".hermes"/"hermes-agent"/"venv"/"bin"/"python3")
-        # 在后台静默运行 resume
         def do_resume():
-            subprocess.run([v, str(DATA_DIR/"pipeline.py"), "--resume"],
-                         capture_output=True, timeout=3600, cwd=str(DATA_DIR))
+            r = subprocess.run([v, str(DATA_DIR/"pipeline.py"), "--resume"],
+                             capture_output=True, text=True, timeout=3600, cwd=str(DATA_DIR))
+            out = r.stdout[-2000:] if r.stdout else r.stderr[-2000:]
+            self.after(0, lambda: self.imp_log.insert("end", out))
+            self.after(0, lambda: self.imp_log.insert("end", "\n✅ 续扫完成\n"))
+            self.after(0, lambda: self.imp_log.see("end"))
         threading.Thread(target=do_resume, daemon=True).start()
 
     def _auto_init(self):
