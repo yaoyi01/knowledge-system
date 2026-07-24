@@ -497,10 +497,11 @@ class App(ctk.CTk):
             text_done_raw = status_map_all.get("text_done", 0)
             rag_done_raw = status_map_all.get("rag_done", 0)
             wiki_raw = status_map_all.get("wiki_ready", 0) + status_map_all.get("ready_for_wiki", 0) + status_map_all.get("indexed", 0)
-            # 累积计数：后面阶段包含前面的
-            text_done = text_done_raw + rag_done_raw + wiki_raw
+            # 累积计数
+            cleaned = total - pending_count  # 所有已过清洗阶段的
             rag_done = rag_done_raw + wiki_raw
             wiki_staged = wiki_raw
+            text_done = text_done_raw + rag_done_raw + wiki_raw
             skipped = status_map_all.get("extract_skip", 0) + status_map_all.get("not_found", 0) + status_map_all.get("error", 0)
             pending_count = status_map_all.get("pending", 0) + status_map_all.get("validated", 0)
             furthest = max(text_done, rag_done, wiki_staged)
@@ -525,6 +526,8 @@ class App(ctk.CTk):
             status_row.pack(fill="x", padx=36, pady=(2, 8))
             ctk.CTkLabel(status_row, text=f"📦 总计 {total}", font=FONT["caption"],
                         text_color=C["slate"]).pack(side="left", padx=(0, 14))
+            ctk.CTkLabel(status_row, text=f"🧹 清洗 {cleaned}", font=FONT["caption"],
+                        text_color=C["ink"]).pack(side="left", padx=(0, 14))
             for label, count, color in [
                 (f"📝 提取 {text_done}", text_done, "#5AC8FA"),
                 (f"🔍 向量 {rag_done}", rag_done, "#FF9500"),
