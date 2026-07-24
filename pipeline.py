@@ -70,29 +70,25 @@ def process_file(file_path: str, conn=None) -> dict:
         print(f"  ✓ 元数据: { {k: v for k, v in meta.items() if v} }")
 
         # ── Stage 4: 文本提取 ──
-        processable = ("docx", "xlsx", "pptx", "pdf", "text", "code")
-        if result["file_type"] in processable:
-            from processors import process
-            proc_result = process(file_hash, result["file_type"], dedup_result["vault_path"], conn)
-            if proc_result and proc_result.get("text_path"):
-                print(f"  ✓ 文本提取: {proc_result['text_path']}")
-                update_status(conn, file_hash, "text_done")
+        from processors import process
+        proc_result = process(file_hash, result["file_type"], dedup_result["vault_path"], conn)
+        if proc_result and proc_result.get("text_path"):
+            print(f"  ✓ 文本提取: {proc_result['text_path']}")
+            update_status(conn, file_hash, "text_done")
 
-                # ── Stage 5: RAG 索引 ──
-                from rag_index import index_text
-                text = Path(proc_result["text_path"]).read_text(encoding="utf-8")
-                chunk_ids = index_text(file_hash, text, proc_result.get("meta", {}), conn)
-                print(f"  ✓ RAG: {len(chunk_ids)} chunks → Qdrant")
-                update_status(conn, file_hash, "rag_done")
+            # ── Stage 5: RAG 索引 ──
+            from rag_index import index_text
+            text = Path(proc_result["text_path"]).read_text(encoding="utf-8")
+            chunk_ids = index_text(file_hash, text, proc_result.get("meta", {}), conn)
+            print(f"  ✓ RAG: {len(chunk_ids)} chunks → Qdrant")
+            update_status(conn, file_hash, "rag_done")
 
-                # ── Stage 6: Wiki 预备 ──
-                from wiki_ingest import stage_for_wiki
-                stage_for_wiki(file_hash, proc_result["text_path"], conn)
-                update_status(conn, file_hash, "wiki_ready")
-            else:
-                update_status(conn, file_hash, "text_done")
+            # ── Stage 6: Wiki 预备 ──
+            from wiki_ingest import stage_for_wiki
+            stage_for_wiki(file_hash, proc_result["text_path"], conn)
+            update_status(conn, file_hash, "wiki_ready")
         else:
-            update_status(conn, file_hash, "processed")
+            update_status(conn, file_hash, "text_done")
 
         duration = (time.time() - t0) * 1000
         print(f"  ✅ 完成 ({duration:.0f}ms)")
