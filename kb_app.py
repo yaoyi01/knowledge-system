@@ -484,29 +484,44 @@ class App(ctk.CTk):
         total = sum(status_map.values()) if status_map else 0
 
         if total > 0:
-            indexed = status_map.get("indexed", 0)
-            ready = status_map.get("ready_for_wiki", 0)
-            done = indexed + ready
-            validated = status_map.get("validated", 0)
-            pct = int(done / total * 100) if total else 0
+            status_map_all = dict(statuses) if statuses else {}
+            # 各阶段统计
+            validated = status_map_all.get("validated", 0) + status_map_all.get("processed", 0)
+            text_done = status_map_all.get("text_done", 0)
+            rag_done = status_map_all.get("rag_done", 0)
+            wiki_ready = status_map_all.get("wiki_ready", 0)
+            indexed_count = status_map_all.get("indexed", 0)
+            ready = status_map_all.get("ready_for_wiki", 0)
+            done = text_done + rag_done + wiki_ready + indexed_count + ready
+            if done == 0: done = indexed_count + ready  # 兼容旧数据
 
             bar_frame = ctk.CTkFrame(self.main, fg_color="transparent")
-            bar_frame.pack(fill="x", padx=36, pady=(0, 4))
-            bar_bg = ctk.CTkFrame(bar_frame, fg_color=C["cream_surface_1"], height=8, corner_radius=4)
+            bar_frame.pack(fill="x", padx=36, pady=(0, 6))
+            bar_bg = ctk.CTkFrame(bar_frame, fg_color=C["cream_surface_1"], height=6, corner_radius=3)
             bar_bg.pack(fill="x")
-            bar_fg = ctk.CTkFrame(bar_bg, fg_color=C["orange"], height=8, corner_radius=4,
-                                   width=max(pct * 3, 10))
-            bar_fg.pack(side="left")
+            # 多色进度条
+            total_w = 600  # approximate
+            for count, color, label in [
+                (text_done, "#5AC8FA", "文本"),
+                (rag_done, "#FF9500", "RAG"),
+                (wiki_ready, "#34C759", "Wiki"),
+            ]:
+                if count > 0 and total > 0:
+                    w = max(int(count / total * total_w), 4)
+                    ctk.CTkFrame(bar_bg, fg_color=color, height=6, width=w,
+                                corner_radius=3).pack(side="left")
+                    # shrink bar_bg remaining space
 
             status_row = ctk.CTkFrame(self.main, fg_color="transparent")
             status_row.pack(fill="x", padx=36, pady=(0, 8))
             for label, count, color in [
-                (f"✅ 完成 {done}", done, C["success"]),
-                (f"⏳ 进行中 {validated}", validated, C["warning"]),
-                (f"📦 总计 {total}", total, C["slate"]),
+                (f"🧹 清理 {total}", total, C["slate"]),
+                (f"📝 文本 {text_done}", text_done, "#5AC8FA"),
+                (f"🔍 RAG {rag_done}", rag_done, "#FF9500"),
+                (f"📖 Wiki {wiki_ready}", wiki_ready, C["success"]),
             ]:
                 ctk.CTkLabel(status_row, text=label, font=FONT["caption"],
-                            text_color=color).pack(side="left", padx=(0, 20))
+                            text_color=color).pack(side="left", padx=(0, 14))
         else:
             ctk.CTkLabel(self.main, text="暂无文件，导入文档后这里会显示处理进度",
                         font=FONT["caption"], text_color=C["mute"]).pack(padx=36, pady=(0, 12))
