@@ -489,8 +489,9 @@ class App(ctk.CTk):
             text_done = status_map_all.get("text_done", 0)
             rag_done = status_map_all.get("rag_done", 0)
             wiki_staged = status_map_all.get("wiki_ready", 0) + status_map_all.get("ready_for_wiki", 0) + status_map_all.get("indexed", 0)
+            skipped = status_map_all.get("extract_skip", 0) + status_map_all.get("not_found", 0) + status_map_all.get("error", 0)
             furthest = max(text_done, rag_done, wiki_staged)
-            pct = int(furthest / total * 100) if total else 0
+            pct = int((furthest + skipped) / total * 100) if total else 0
 
             # 标题行
             ctk.CTkLabel(self.main, text=f"处理进度: {total} 个文件",
@@ -518,6 +519,9 @@ class App(ctk.CTk):
             ]:
                 ctk.CTkLabel(status_row, text=label, font=FONT["caption"],
                             text_color=color).pack(side="left", padx=(0, 14))
+            if skipped > 0:
+                ctk.CTkLabel(status_row, text=f"⏭ 跳过 {skipped}", font=FONT["caption"],
+                            text_color=C["mute"]).pack(side="left", padx=(0, 14))
         else:
             ctk.CTkLabel(self.main, text="暂无文件，导入文档后这里会显示处理进度",
                         font=FONT["caption"], text_color=C["mute"]).pack(padx=36, pady=(0, 12))
