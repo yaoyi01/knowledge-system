@@ -459,10 +459,47 @@ class App(ctk.CTk):
             ctk.CTkLabel(card, text=val, font=FONT["stat"], text_color=color).pack(pady=(20, 0))
             ctk.CTkLabel(card, text=label, font=FONT["stat_label"], text_color=C["slate"]).pack(pady=(2, 16))
 
-        # Note-style activity list
         header = ctk.CTkFrame(self.main, fg_color="transparent")
         header.pack(fill="x", padx=36, pady=(8, 4))
-        ctk.CTkLabel(header, text="最近导入", font=FONT["caption_strong"],
+        ctk.CTkLabel(header, text="处理进度", font=FONT["caption_strong"],
+                    text_color=C["slate"]).pack(side="left")
+
+        # 处理进度条 + 状态分解
+        statuses = self._db("SELECT status, COUNT(*) FROM files GROUP BY status")
+        status_map = dict(statuses) if statuses else {}
+        total = sum(status_map.values()) if status_map else 0
+
+        if total > 0:
+            indexed = status_map.get("indexed", 0)
+            ready = status_map.get("ready_for_wiki", 0)
+            validated = status_map.get("validated", 0)
+            pct = int((indexed + ready) / total * 100) if total else 0
+
+            bar_frame = ctk.CTkFrame(self.main, fg_color="transparent")
+            bar_frame.pack(fill="x", padx=36, pady=(0, 4))
+            bar_bg = ctk.CTkFrame(bar_frame, fg_color=C["cream_surface_1"], height=8, corner_radius=4)
+            bar_bg.pack(fill="x")
+            bar_fg = ctk.CTkFrame(bar_bg, fg_color=C["orange"], height=8, corner_radius=4,
+                                   width=max(pct * 3, 10))
+            bar_fg.pack(side="left")
+
+            status_row = ctk.CTkFrame(self.main, fg_color="transparent")
+            status_row.pack(fill="x", padx=36, pady=(0, 8))
+            for label, count, color in [
+                (f"✅ 完成 {indexed + ready}", indexed + ready, C["success"]),
+                (f"⏳ 进行中 {validated}", validated, C["warning"]),
+                (f"📦 总计 {total}", total, C["slate"]),
+            ]:
+                ctk.CTkLabel(status_row, text=label, font=FONT["caption"],
+                            text_color=color).pack(side="left", padx=(0, 20))
+        else:
+            ctk.CTkLabel(self.main, text="暂无文件，导入文档后这里会显示处理进度",
+                        font=FONT["caption"], text_color=C["mute"]).pack(padx=36, pady=(0, 12))
+
+        # Note-style activity list
+        act_header = ctk.CTkFrame(self.main, fg_color="transparent")
+        act_header.pack(fill="x", padx=36, pady=(8, 4))
+        ctk.CTkLabel(act_header, text="最近导入", font=FONT["caption_strong"],
                     text_color=C["slate"]).pack(side="left")
 
         activity = ctk.CTkScrollableFrame(self.main, fg_color="transparent")
