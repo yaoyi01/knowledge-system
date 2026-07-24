@@ -102,6 +102,14 @@ def check_file(file_path: str) -> dict:
     if result["file_size"] == 0:
         result["reason"] = "空文件"
         return result
+    # 检测云存储占位符（OneDrive/iCloud 按需文件）
+    try:
+        st = path.stat()
+        if st.st_blocks == 0 and st.st_size > 0:
+            result["reason"] = "云端占位符，未下载到本地"
+            return result
+    except Exception:
+        pass
 
     # L2: 扩展名 → 类型
     ext = path.suffix.lower()
