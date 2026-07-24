@@ -234,25 +234,71 @@ def main():
                 ".xmind",".mm",".opml",".vsdx",
                 ".md",".txt",".csv",".json",".yaml",
                 ".py",".js",".ts",".jsx",".tsx",".go",".rs",".java",".c",".cpp",".h"}
-        files = [f for f in target.rglob("*") if f.is_file() and f.suffix.lower() in exts]
+        all_files = [f for f in target.rglob("*") if f.is_file() and f.suffix.lower() in exts]
+        # 跳过云占位符
+        files = []
+        for f in all_files:
+            try:
+                st = f.stat()
+                if st.st_blocks == 0 and st.st_size > 0:
+                    continue  # cloud placeholder
+                files.append(f)
+            except: pass
         total = len(files)
+        clouds = len(all_files) - total
         print(f"📂 {target}")
-        print(f"   预扫描: {total} 个文件")
+        print(f"   预扫描: {total} 个文件" + (f" (跳过 {clouds} 个云占位符)" if clouds else ""))
         if total == 0: conn.close(); return
-        print(f"   [0/{total}] 开始处理...")
-        for i, f in enumerate(files, 1):
-            pct = i * 100 // total
+
+        # 预注册所有文件到 state.db（状态 pending），防止中断丢失
+        from cleaner.format_check import check_file
+        import hashlib, datetime
+        registered = 0
+        for f in files:
+            try:
+                st = f.stat()
+                # 计算 hash
+                h = hashlib.sha256()
+                with open(f, "rb") as fh:
+                    h.update(fh.read(8192))
+                file_hash = h.hexdigest()
+                # 检查是否已存在
+                existing = conn.execute("SELECT 1 FROM files WHERE file_hash=?", (file_hash,)).fetchone()
+                if not existing:
+                    conn.execute("""
+                        INSERT INTO files (file_hash, original_path, original_name, file_type,
+                                          file_size, modified_at, status, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+                    """, (file_hash, str(f), f.name, f.suffix.lower().lstrip("."),
+                          st.st_size, datetime.datetime.fromtimestamp(st.st_mtime).isoformat(),
+                          datetime.datetime.now().isoformat(), datetime.datetime.now().isoformat()))
+                    registered += 1
+            except: pass
+        conn.commit()
+        print(f"   预注册: {registered} 个新文件")
+        print(f"   [0/{registered}] 开始处理...\n" if registered else "   没有新文件\n")
+
+        # 逐文件处理（只处理 pending 状态）
+        pending = conn.execute(
+            "SELECT file_hash, original_path FROM files WHERE status='pending' ORDER BY id"
+        ).fetchall()
+        for i, (fh, fp) in enumerate(pending, 1):
+            pct = i * 100 // len(pending) if pending else 0
             bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
-            print(f"   [{pct:3d}%] {bar}  {i}/{total}  {f.name}")
-            process_file(str(f), conn)
+            print(f"   [{pct:3d}%] {bar}  {i}/{len(pending)}  {Path(fp).name}")
+            try:
+                process_file(str(Path(fp)), conn)
+            except Exception as e:
+                conn.execute("UPDATE files SET status='error' WHERE file_hash=?", (fh,))
+                print(f"     ❌ {e}")
             conn.commit()
-        print(f"✅ 完成: {total} 个文件")
+        print(f"\n✅ 完成: {registered} 个新文件处理完毕")
         conn.close()
         return
     if sys.argv[1] == "--resume":
         print("🔍 查找中断的文件...")
         pending = conn.execute(
-            "SELECT original_path, file_hash FROM files WHERE status IN ('validated','processing','text_done')"
+            "SELECT original_path, file_hash FROM files WHERE status IN ('validated','processing','text_done','pending','error')"
         ).fetchall()
         if not pending:
             print("   没有中断的文件"); conn.close(); return

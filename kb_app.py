@@ -113,7 +113,7 @@ class App(ctk.CTk):
             self.show_installer()
         else:
             # 检查是否有中断文件 → 自动续扫
-            pending = self._db("SELECT COUNT(*) FROM files WHERE status IN ('validated','processing')")
+            pending = self._db("SELECT COUNT(*) FROM files WHERE status IN ('validated','processing','text_done','pending','error')")
             if pending and pending[0][0] > 0:
                 self._auto_resume(pending[0][0])
             self.show_dashboard()
@@ -498,6 +498,7 @@ class App(ctk.CTk):
             rag_done = status_map_all.get("rag_done", 0)
             wiki_staged = status_map_all.get("wiki_ready", 0) + status_map_all.get("ready_for_wiki", 0) + status_map_all.get("indexed", 0)
             skipped = status_map_all.get("extract_skip", 0) + status_map_all.get("not_found", 0) + status_map_all.get("error", 0)
+            pending_count = status_map_all.get("pending", 0) + status_map_all.get("validated", 0)
             furthest = max(text_done, rag_done, wiki_staged)
             pct = int((furthest + skipped) / total * 100) if total else 0
 
@@ -530,6 +531,9 @@ class App(ctk.CTk):
             if skipped > 0:
                 ctk.CTkLabel(status_row, text=f"⏭ 跳过 {skipped}", font=FONT["caption"],
                             text_color=C["mute"]).pack(side="left", padx=(0, 14))
+            if pending_count > 0:
+                ctk.CTkLabel(status_row, text=f"⏳ 待处理 {pending_count}", font=FONT["caption"],
+                            text_color=C["warning"]).pack(side="left", padx=(0, 14))
         else:
             ctk.CTkLabel(self.main, text="暂无文件，导入文档后这里会显示处理进度",
                         font=FONT["caption"], text_color=C["mute"]).pack(padx=36, pady=(0, 12))
