@@ -494,9 +494,13 @@ class App(ctk.CTk):
         if total > 0:
             status_map_all = dict(statuses) if statuses else {}
             validated = status_map_all.get("validated", 0) + status_map_all.get("processed", 0)
-            text_done = status_map_all.get("text_done", 0)
-            rag_done = status_map_all.get("rag_done", 0)
-            wiki_staged = status_map_all.get("wiki_ready", 0) + status_map_all.get("ready_for_wiki", 0) + status_map_all.get("indexed", 0)
+            text_done_raw = status_map_all.get("text_done", 0)
+            rag_done_raw = status_map_all.get("rag_done", 0)
+            wiki_raw = status_map_all.get("wiki_ready", 0) + status_map_all.get("ready_for_wiki", 0) + status_map_all.get("indexed", 0)
+            # 累积计数：后面阶段包含前面的
+            text_done = text_done_raw + rag_done_raw + wiki_raw
+            rag_done = rag_done_raw + wiki_raw
+            wiki_staged = wiki_raw
             skipped = status_map_all.get("extract_skip", 0) + status_map_all.get("not_found", 0) + status_map_all.get("error", 0)
             pending_count = status_map_all.get("pending", 0) + status_map_all.get("validated", 0)
             furthest = max(text_done, rag_done, wiki_staged)
