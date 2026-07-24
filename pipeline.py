@@ -86,6 +86,7 @@ def process_file(file_path: str, conn=None) -> dict:
                 # ── Stage 6: Wiki 预备 ──
                 from wiki_ingest import stage_for_wiki
                 stage_for_wiki(file_hash, proc_result["text_path"], conn)
+                update_status(conn, file_hash, "indexed")  # 标记完成
             else:
                 update_status(conn, file_hash, "processed")
         else:

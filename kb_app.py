@@ -472,8 +472,9 @@ class App(ctk.CTk):
         if total > 0:
             indexed = status_map.get("indexed", 0)
             ready = status_map.get("ready_for_wiki", 0)
+            done = indexed + ready
             validated = status_map.get("validated", 0)
-            pct = int((indexed + ready) / total * 100) if total else 0
+            pct = int(done / total * 100) if total else 0
 
             bar_frame = ctk.CTkFrame(self.main, fg_color="transparent")
             bar_frame.pack(fill="x", padx=36, pady=(0, 4))
@@ -486,7 +487,7 @@ class App(ctk.CTk):
             status_row = ctk.CTkFrame(self.main, fg_color="transparent")
             status_row.pack(fill="x", padx=36, pady=(0, 8))
             for label, count, color in [
-                (f"✅ 完成 {indexed + ready}", indexed + ready, C["success"]),
+                (f"✅ 完成 {done}", done, C["success"]),
                 (f"⏳ 进行中 {validated}", validated, C["warning"]),
                 (f"📦 总计 {total}", total, C["slate"]),
             ]:
