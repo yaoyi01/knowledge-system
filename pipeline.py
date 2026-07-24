@@ -223,6 +223,57 @@ def main():
         print(f"✅ 扫描完成")
         conn.close()
         return
+    if sys.argv[1] == "--dir":
+        if len(sys.argv) < 3:
+            print("用法: pipeline.py --dir <目录路径>")
+            conn.close(); return
+        target = Path(sys.argv[2]).expanduser()
+        if not target.exists():
+            print(f"❌ 目录不存在: {target}"); conn.close(); return
+        exts = {".docx",".doc",".xlsx",".xls",".pptx",".ppt",".pdf",
+                ".jpg",".jpeg",".png",".gif",".webp",".bmp",
+                ".mp4",".mov",".avi",".mkv",".mp3",".wav",".m4a",".aac",
+                ".xmind",".mm",".opml",".vsdx",
+                ".md",".txt",".csv",".json",".yaml",
+                ".py",".js",".ts",".jsx",".tsx",".go",".rs",".java",".c",".cpp",".h"}
+        files = [f for f in target.rglob("*") if f.is_file() and f.suffix.lower() in exts]
+        total = len(files)
+        print(f"📂 {target}")
+        print(f"   预扫描: {total} 个文件")
+        if total == 0: conn.close(); return
+        print(f"   [0/{total}] 开始处理...")
+        for i, f in enumerate(files, 1):
+            pct = i * 100 // total
+            bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+            print(f"   [{pct:3d}%] {bar}  {i}/{total}  {f.name}")
+            process_file(str(f), conn)
+            conn.commit()
+        print(f"✅ 完成: {total} 个文件")
+        conn.close()
+        return
+    if sys.argv[1] == "--resume":
+        print("🔍 查找中断的文件...")
+        pending = conn.execute(
+            "SELECT original_path, file_hash FROM files WHERE status IN ('validated','processing')"
+        ).fetchall()
+        if not pending:
+            print("   没有中断的文件"); conn.close(); return
+        total = len(pending)
+        print(f"   找到 {total} 个中断文件，继续处理...")
+        for i, (path, fhash) in enumerate(pending, 1):
+            pct = i * 100 // total if total else 0
+            bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+            print(f"   [{pct:3d}%] {bar}  {i}/{total}")
+            p = Path(path)
+            if p.exists():
+                process_file(str(p), conn)
+            else:
+                print(f"     ⚠️ 文件不存在: {path}")
+                conn.execute("UPDATE files SET status='error' WHERE file_hash=?", (fhash,))
+            conn.commit()
+        print(f"✅ 续扫完成")
+        conn.close()
+        return
     if sys.argv[1] == "--process":
         rows = conn.execute(
             "SELECT file_hash, file_type, vault_path, original_name FROM files WHERE status IN ('processing','validated','processed')",

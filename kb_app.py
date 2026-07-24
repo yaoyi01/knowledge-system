@@ -112,6 +112,10 @@ class App(ctk.CTk):
         if not self._all_components_ready():
             self.show_installer()
         else:
+            # 检查是否有中断文件 → 自动续扫
+            pending = self._db("SELECT COUNT(*) FROM files WHERE status IN ('validated','processing')")
+            if pending and pending[0][0] > 0:
+                self._auto_resume(pending[0][0])
             self.show_dashboard()
 
     def _all_components_ready(self):
@@ -383,6 +387,16 @@ class App(ctk.CTk):
         # 返回第一个
         return next(iter(keys.values()), None) if keys else None
 
+    def _auto_resume(self, count):
+        """启动时自动续扫中断的文件"""
+        import subprocess, threading
+        v = str(Path.home()/".hermes"/"hermes-agent"/"venv"/"bin"/"python3")
+        # 在后台静默运行 resume
+        def do_resume():
+            subprocess.run([v, str(DATA_DIR/"pipeline.py"), "--resume"],
+                         capture_output=True, timeout=3600, cwd=str(DATA_DIR))
+        threading.Thread(target=do_resume, daemon=True).start()
+
     def _auto_init(self):
         """首次启动自动创建目录和数据库"""
         dirs = [DATA_DIR, DATA_DIR/"cleaner", DATA_DIR/"processors",
@@ -576,8 +590,15 @@ class App(ctk.CTk):
     def _imp_thread(self, t):
         try:
             v = str(Path.home()/".hermes"/"hermes-agent"/"venv"/"bin"/"python3")
-            r = subprocess.run([v, str(DATA_DIR/"pipeline.py"), t],
-                              capture_output=True, text=True, timeout=300, cwd=str(DATA_DIR))
+            p = Path(t)
+            if p.is_dir():
+                # 目录导入：--dir 模式（预扫描 + 进度）
+                r = subprocess.run([v, str(DATA_DIR/"pipeline.py"), "--dir", t],
+                                  capture_output=True, text=True, timeout=3600, cwd=str(DATA_DIR))
+            else:
+                # 单文件导入
+                r = subprocess.run([v, str(DATA_DIR/"pipeline.py"), t],
+                                  capture_output=True, text=True, timeout=300, cwd=str(DATA_DIR))
             o = r.stdout[-2000:] if r.stdout else r.stderr[-2000:]
             self.after(0, lambda: self.imp_log.insert("end", o))
 
